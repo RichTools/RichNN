@@ -10,3 +10,4 @@ This code is a work in progress and thus has no documentation. If you are intere
 - [ ] Batch Processing
 - [ ] Cleaner API
 - [ ] Releasing and Licensing
+- [ ] Visualisation of the Network
