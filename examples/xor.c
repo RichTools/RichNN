@@ -6,8 +6,8 @@
 // TODO: Saving the Model
 // TODO: Move the Cost Function and FiniteDifference into the header
 
-#define RICHML_IMPLEMENTATION
-#include "../RichML.h"
+#define RICHNN_IMPLEMENTATION
+#include "../RichNN.h"
 
 #define train_count (sizeof train / sizeof train[0])
 
@@ -20,39 +20,50 @@ float train[][3] = {
   {1, 1, 0}
 };
 
+
+#define n_i 2
+static const float inputs[][n_i] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
+static const float outputs[] = {0, 1, 1, 0};
+#define train_count (sizeof inputs / sizeof inputs[0])
+
 // computing the cost function
 
-float cost(NeuralNetwork* network) 
+float cost(NeuralNetwork* network, int n, float (*input_vals)[n], float output_vals[]) 
 {
   float MSE_Result = 0.0f;
-  int outputIdx = 2;
 
   for (size_t i = 0; i < train_count; ++i) 
   {
-    float inputs[] = {train[i][0], train[i][1]};
+    float input_sample[n];
 
-    Tensor2D* output_matrix = forward(network, (float*)inputs, 2, sigmoid);
+    for (int j = 0; j < n; ++j)
+    {
+      input_sample[j] = input_vals[i][j];
+    }
+
+    Tensor2D* output_matrix = forward(network, (float*)input_sample, n, sigmoid);
 
     if (output_matrix->cols * output_matrix->rows == 1)
     {
       float y = TENSOR_AT(output_matrix, 0, 0);
-      float d = y - train[i][outputIdx];
+      float d = y - output_vals[i];
       MSE_Result += d*d;
     }
     else 
     {
-      TENSOR_ASSERT(0 && "Mutiple Output Parameters are not Implemented");
+      TENSOR_ASSERT(0 && "Multiple Output Parameters are not Implemented");
     }
   }
   MSE_Result /= train_count;
   return MSE_Result;
 }
 
-Tensor2D* finite_difference(NeuralNetwork* model, NeuralNetwork* gradients, float eps) 
+Tensor2D* finite_difference(NeuralNetwork* model, NeuralNetwork* gradients, 
+                            float eps, float inputs[][3], float outputs[]) 
 {
   NeuralNetwork* m = model;
 
-  float current_cost = cost(model);
+  float current_cost = cost(model, n_i, inputs, outputs);
   float saved;
 
   for (int i = 0; i < m->layer_count; ++i)
@@ -62,7 +73,7 @@ Tensor2D* finite_difference(NeuralNetwork* model, NeuralNetwork* gradients, floa
 
     saved = current_layer->bias;
     current_layer->bias += eps;
-    current_gradient_layer->bias = (cost(model) - current_cost)/eps;
+    current_gradient_layer->bias = (cost(model, n_i, inputs, outputs) - current_cost)/eps;
     current_layer->bias = saved;
 
     for (int j = 0; j < current_layer->weights->rows; ++j) 
@@ -71,37 +82,13 @@ Tensor2D* finite_difference(NeuralNetwork* model, NeuralNetwork* gradients, floa
       {
         saved = TENSOR_AT(current_layer->weights, j, k);
         TENSOR_AT(current_layer->weights, j, k) += eps;
-        TENSOR_AT(current_gradient_layer->weights, j, k) = (cost(model) - current_cost)/eps;
+        TENSOR_AT(current_gradient_layer->weights, j, k) = (cost(model, n_i, inputs, outputs) - current_cost)/eps;
         TENSOR_AT(current_layer->weights, j, k) = saved;   
       }
     }
   }
   return gradients;
 }
-
-NeuralNetwork* gradient_descent(NeuralNetwork* model, NeuralNetwork* gradients, float rate) 
-{
-  NeuralNetwork* m = model;
-  NeuralNetwork* g = gradients;
-
-  for (int i = 0; i < m->layer_count; ++i)
-  {
-    Layer* current_layer = m->layers[i];
-    Layer* current_gradient_layer = g->layers[i];
-
-    current_layer->bias -= (rate * current_gradient_layer->bias);
-
-    for (int j = 0; j < current_layer->weights->rows; ++j) 
-    {
-      for (int k = 0; k < current_layer->weights->cols; ++k)
-      {
-        TENSOR_AT(current_layer->weights, j, k) -= (rate * TENSOR_AT(current_gradient_layer->weights, j, k));
-      }
-    }
-  }
-  return m;
-}
-
 
 
 int main(void) 
@@ -126,13 +113,13 @@ int main(void)
 
   for (size_t i = 0; i <= iterations; ++i) 
   {
-    finite_difference(XorNetwork, gradients, eps);
-    XorNetwork = gradient_descent(XorNetwork, gradients, rate);
-    if (i % 100 == 0) printf("Epoch - %zu / %d) cost = %f\n", i, iterations, cost(XorNetwork));
+    finite_difference(XorNetwork, gradients, eps, inputs, outputs);
+    XorNetwork = batch_gradient_descent(XorNetwork, gradients, rate);
+    if (i % 100 == 0) printf("Epoch - %zu / %d) cost = %f\n", i, iterations, cost(XorNetwork, n_i, inputs, outputs));
   }
 
   printf("---------------\n");
-  printf("Loss = %f\n", cost(XorNetwork));
+  printf("Loss = %f\n", cost(XorNetwork, n_i, inputs, outputs));
 
   printf("---------------");
   printf("\nValidation Data: \n");
@@ -142,7 +129,7 @@ int main(void)
       for (size_t j = 0; j < 2; ++j)
       {
         float inputs[] = {i, j};
-        Tensor2D* output = forward(XorNetwork, (float*)inputs, 2, sigmoid);
+        Tensor2D* output = forward(XorNetwork, (float*)inputs, n_i, sigmoid);
         printf("\n");
         float o = (TENSOR_AT(output, 0,0) < 0.1) ? 0 : 1;
         printf("%zu ^ %zu = %f\n", i, j, o);

@@ -1,5 +1,5 @@
-#ifndef _RICHML_H_
-#define _RICHML_H_
+#ifndef _RICHNN_H_
+#define _RICHNN_H_
 
 #define MATRIX_IMPLEMENTATION
 #include "Matrix.h"
@@ -35,9 +35,9 @@ NeuralNetwork* batch_gradient_descent(NeuralNetwork* model, NeuralNetwork* gradi
 void free_layer(Layer *layer);
 void free_network(NeuralNetwork *network); 
 
-#endif // _RICHML_H_
+#endif // _RICHNN_H_
 
-#ifdef RICHML_IMPLEMENTATION
+#ifdef RICHNN_IMPLEMENTATION
 
 // Activation Functions
 
@@ -164,7 +164,6 @@ NeuralNetwork* batch_gradient_descent(NeuralNetwork* model, NeuralNetwork* gradi
   return m;
 }
 
-
 // Free allocated memory for layers
 void free_layer(Layer *layer) 
 {
@@ -182,4 +181,4 @@ void free_network(NeuralNetwork *network)
 }
 
 
-#endif // RICHML_IMPLEMENTATION
+#endif // RICHNN_IMPLEMENTATION
