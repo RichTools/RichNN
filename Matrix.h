@@ -7,30 +7,42 @@ typedef struct {
   float **data;
 } Tensor2D;
 
+/* Note to Reader:
+ * I am using the terms, Tensor and Matrix interchangeably, 
+ * purely because I can, and no other reason.
+ */
+
 float rand_float(void);
 
 // Memory Management
-Tensor2D* Tensor_alloc(int rows, int cols);
-void Tensor_free(Tensor2D* matrix);
-Tensor2D* Tensor_init(int rows, int cols);
+
+Tensor2D* Tensor_alloc(int rows, int cols); // allocate memory for the matrix, rox x col x sizeof float
+void Tensor_free(Tensor2D* matrix); // free the memory for a tensor -> the data, and the tensor itself.
+Tensor2D* Tensor_init(int rows, int cols); // calls Tensor_alloc and initalised with r x c random float values
 
 // Operations 
-Tensor2D* Tensor_mul(Tensor2D* a, Tensor2D* b);
-Tensor2D* Tensor_add(Tensor2D* a, float b);
-Tensor2D* Tensor_scale(Tensor2D* a, int scalar);
-void Tensor_map(Tensor2D* a, float (*func)(float));
+
+Tensor2D* Tensor_mul(Tensor2D* a, Tensor2D* b); // mutiply two tensors together
+Tensor2D* Tensor_add(Tensor2D* a, float b); // add a scalar vlaue into a tensor
+Tensor2D* Tensor_scale(Tensor2D* a, int scalar); // scale a tensor by a scalar value
+void Tensor_map(Tensor2D* a, float (*func)(float)); // map a function over each value in the tensor 
 
 // Utils 
-void Tensor_print(Tensor2D* tensor);
-void Tensor_fill(Tensor2D* matrix, float val);
-void Tensor_Dim(Tensor2D* t); 
+
+void Tensor_print(Tensor2D* tensor);  // print the tensor into the terminal 
+void Tensor_fill(Tensor2D* matrix, float val); // will the tensor will a specified val 
+void Tensor_Dim(Tensor2D* t); // show the dimensions of the tensor
 
 #ifndef TENSOR_ASSERT
 #include <assert.h>
 #define TENSOR_ASSERT assert
 #endif // TENSOR_ASSERT
 
-#define TENSOR_AT(t, x, y) t->data[x][y]
+// Macro Definitions 
+
+// get the value at location specified by row and col (x, y)
+#define TENSOR_AT(t, x, y) t->data[x][y] 
+// return the larger of the two passed in values
 #define MAX(i, j) (((i) > (j)) ? (i) : (j))
 
 #endif // _MATRIX_H_
