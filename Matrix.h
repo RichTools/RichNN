@@ -25,6 +25,7 @@ Tensor2D* Tensor_init(int rows, int cols); // calls Tensor_alloc and initalised 
 Tensor2D* Tensor_mul(Tensor2D* a, Tensor2D* b); // mutiply two tensors together
 Tensor2D* Tensor_add(Tensor2D* a, float b); // add a scalar vlaue into a tensor
 Tensor2D* Tensor_scale(Tensor2D* a, int scalar); // scale a tensor by a scalar value
+Tensor2D* Tensor_transpose(Tensor2D* a);
 void Tensor_map(Tensor2D* a, float (*func)(float)); // map a function over each value in the tensor 
 
 // Utils 
@@ -171,6 +172,21 @@ Tensor2D* Tensor_mul(Tensor2D* a, Tensor2D* b)
     }
   }
   return result;
+}
+
+Tensor2D* Tensor_transpose(Tensor2D* a)
+{
+  Tensor2D* out = Tensor_alloc(a->cols, a->rows);
+  
+  for (int i = 0; i < a->rows; ++i)
+  {
+    for (int j = 0; j < a->cols; ++j)
+    {
+      TENSOR_AT(out, j, i) = TENSOR_AT(a, i, j);
+    }
+  }
+
+  return out;
 }
 
 void Tensor_map(Tensor2D* a, float (*func)(float))

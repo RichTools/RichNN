@@ -21,6 +21,12 @@ typedef struct {
 
 float sigmoid(float x); 
 float ReLu(float x);
+float tanH(float x);
+
+// Derivatives of Activation Functions
+float dsigmoid(float dx);
+float dReLu(float dx);
+float dtanH(float dx);
 
 // Creating the Network Architecture
 
@@ -30,9 +36,15 @@ void print_network(NeuralNetwork* network);
 
 // Agorithms
 Tensor2D* forward(NeuralNetwork* network, float inputs[], int inputSize, float (*activationFunc)(float)); 
+
 NeuralNetwork* batch_gradient_descent(NeuralNetwork* model, NeuralNetwork* gradients, float rate);
+
 Tensor2D* finite_difference(NeuralNetwork* model, NeuralNetwork* gradients, 
-    float eps, float inputs[][model->sample_size], float outputs[]); 
+    float eps, float inputs[][model->sample_size], float outputs[]);
+
+Tensor2D* backpropagation(NeuralNetwork* model, NeuralNetwork* gradients, 
+    float inputs[][model->sample_size], float outputs[]); 
+
 float cost(NeuralNetwork* network, int n, float (*input_vals)[n], float output_vals[]); 
 // Cleaning up memory
 
@@ -53,6 +65,29 @@ float sigmoid(float x)
 float ReLu(float x) 
 {
   return MAX(0.0f, x); 
+}
+
+float tanH(float x)
+{
+  return tanh(x);
+}
+
+// Derivatives of Activation Functions
+
+float dsigmoid(float dx)
+{
+  return sigmoid(dx)*(1-sigmoid(dx));
+}
+
+float dReLu(float dx) 
+{
+  if (dx < 0) return 0.0f;
+  else return 1.0f;
+}
+
+float dtanH(float dx) 
+{
+  return 1 - powf(tanh(dx), 2.0f); 
 }
 
 // Neural Network Creation
@@ -202,6 +237,83 @@ Tensor2D* finite_difference(NeuralNetwork* model, NeuralNetwork* gradients,
   return gradients;
 }
 
+// backpropagation
+
+Tensor2D* backpropagation(NeuralNetwork* model, NeuralNetwork* gradients, 
+    float inputs[][model->sample_size], float outputs[]) 
+{
+
+  Tensor2D* derivatives = Tensor_init(gradients->layers[0]->weights->cols, gradients->layers[0]->weights->rows);
+  int n = 2;
+
+  int output_size = sizeof(outputs)/sizeof(outputs[0]);
+  // fill the gradient matrix
+  for (int i = 0; i < gradients->layer_count; ++i) 
+  {
+    Layer* l = gradients->layers[i];
+    Tensor_fill(l->weights, 0.0f);
+  }
+
+  // loop over the inputs 
+  for (int i = 0; i < model->train_size; ++i) 
+  {
+    float input_sample[n];
+    for (int j = 0; j < model->sample_size; ++j) 
+    {
+      input_sample[j] = inputs[i][j];
+    }
+    // forward the network 
+    Tensor2D* out = forward(model, (float*)input_sample, n, sigmoid);
+    // compute the error for each sample 
+    for (int j = 0; j < output_size; ++j) 
+    {
+      float error = TENSOR_AT(out, 0, j) - outputs[j];
+      TENSOR_AT(derivatives, 0, j) = error;
+    }
+  }
+#if 1
+    // propagate backwards
+    for (size_t l = model->layer_count - 1; l > 0; --l)
+    {
+      // loop over the activations 
+      for (int a = 0; a < model->layers[l]->weights->cols; ++a)
+      {
+        float act = TENSOR_AT(model->layers[l]->weights, 0, a);
+        float dact = TENSOR_AT(derivatives, 0, a);
+        Layer* prev_layer_a = model->layers[l-1];
+        prev_layer_a->bias += 2* (dact)*act*(1 - act);
+
+       for (int k = 0; k < model->layers[l-1]->weights->cols; ++k)
+        {
+          float pa = TENSOR_AT(model->layers[l-1]->weights, 0, k);
+          float w = TENSOR_AT(model->layers[l-1]->weights, k, a);
+          TENSOR_AT(gradients->layers[l-1]->weights, k, a) += 2 * dact * act * (1 - act) * pa;
+          TENSOR_AT(model->layers[l-1]->weights, k, a) += 2 * dact * act * (1 - act) * w;
+        }
+
+      }
+    }
+#endif 
+  for (size_t i = 0; i < gradients->layer_count; ++i)
+  {
+    for (size_t j = 0; j < gradients->layers[i]->weights->rows; ++j)
+    {
+      for (size_t k = 0; k < gradients->layers[i]->weights->cols; ++k)
+      {
+        TENSOR_AT(gradients->layers[i]->weights, j, k) /= model->sample_size;
+      }
+    }
+    
+    gradients->layers[i]->bias /= model->sample_size;
+  }
+
+  Tensor_print(gradients->layers[0]->weights);
+
+
+  return gradients;
+} 
+
+
 // computing the cost function
 
 float cost(NeuralNetwork* network, int n, float (*input_vals)[n], float output_vals[]) 
@@ -233,9 +345,6 @@ float cost(NeuralNetwork* network, int n, float (*input_vals)[n], float output_v
   MSE_Result /= network->train_size;
   return MSE_Result;
 }
-
-
-
 
 // Free allocated memory for layers
 void free_layer(Layer *layer) 

@@ -49,8 +49,9 @@ int main(int argc, char** argv)
 
   for (size_t i = 0; i <= iterations; ++i) 
   {
-    // train the network for a specified number of iterations 
-    finite_difference(XorNetwork, gradients, eps, inputs, outputs);
+    // train the network for a specified number of iterations
+    backpropagation(XorNetwork, gradients, inputs, outputs);
+    //finite_difference(XorNetwork, gradients, eps, inputs, outputs);
     XorNetwork = batch_gradient_descent(XorNetwork, gradients, rate);
 
     // this will show us logs if we provide the -Log flag (see the build script)
