@@ -4,7 +4,7 @@ This code is a work in progress and thus has no documentation. If you are intere
 - examples/xor.c
 
 ## Todo:
-- [ ] Using Back Propagation instead of Finite Difference
+- [x] Using Back Propagation instead of Finite Difference
 - [ ] Optimisers: Stochastic GD, SGD with Momentum etc..
 - [ ] Batch Processing
 - [ ] Cleaner API
