@@ -19,13 +19,18 @@ float rand_float(void);
 Tensor2D* Tensor_alloc(int rows, int cols); // allocate memory for the matrix, rox x col x sizeof float
 void Tensor_free(Tensor2D* matrix); // free the memory for a tensor -> the data, and the tensor itself.
 Tensor2D* Tensor_init(int rows, int cols); // calls Tensor_alloc and initalised with r x c random float values
+Tensor2D* Tensor_copy(Tensor2D* src);
+void Tensor_copy_into(Tensor2D* dest, Tensor2D* src);
 
 // Operations 
 
 Tensor2D* Tensor_mul(Tensor2D* a, Tensor2D* b); // mutiply two tensors together
-Tensor2D* Tensor_add(Tensor2D* a, float b); // add a scalar vlaue into a tensor
+Tensor2D* Tensor_add(Tensor2D* a, Tensor2D* b); // add two tensors
+Tensor2D* Tensor_sub(Tensor2D* a, Tensor2D* b);
 Tensor2D* Tensor_scale(Tensor2D* a, int scalar); // scale a tensor by a scalar value
 Tensor2D* Tensor_transpose(Tensor2D* a);
+Tensor2D* Tensor_hadamard(Tensor2D* a, Tensor2D* b);
+
 void Tensor_map(Tensor2D* a, float (*func)(float)); // map a function over each value in the tensor 
 
 // Utils 
@@ -52,8 +57,9 @@ void Tensor_Dim(Tensor2D* t); // show the dimensions of the tensor
 
 float rand_float(void)
 {
-  return (float)rand()/(float)(RAND_MAX/1);
+  return ((float)rand()/RAND_MAX)* 0.1f - 0.05f;
 }
+
 
 Tensor2D* Tensor_alloc(int rows, int cols)
 {
@@ -108,6 +114,38 @@ Tensor2D* Tensor_init(int rows, int cols)
   return tensor;
 }
 
+
+Tensor2D* Tensor_copy(Tensor2D* src)
+{
+    Tensor2D* out = Tensor_alloc(src->rows, src->cols);
+
+    for (int i = 0; i < src->rows; ++i)
+    {
+        for (int j = 0; j < src->cols; ++j)
+        {
+            TENSOR_AT(out, i, j) = TENSOR_AT(src, i, j);
+        }
+    }
+
+    return out;
+}
+
+
+void Tensor_copy_into(Tensor2D* dest, Tensor2D* src)
+{
+    TENSOR_ASSERT(dest->rows == src->rows);
+    TENSOR_ASSERT(dest->cols == src->cols);
+
+    for (int i = 0; i < src->rows; i++)
+    {
+        for (int j = 0; j < src->cols; j++)
+        {
+            TENSOR_AT(dest, i, j) = TENSOR_AT(src, i, j);
+        }
+    }
+}
+
+
 Tensor2D* Tensor_scale(Tensor2D* a, int scalar) 
 {
   Tensor2D* result = Tensor_alloc(a->rows, a->cols);
@@ -122,21 +160,19 @@ Tensor2D* Tensor_scale(Tensor2D* a, int scalar)
   return result;
 }
 
-void Tensor_fill(Tensor2D* matrix, float val) 
+void Tensor_fill(Tensor2D* matrix, float val)
 {
-  Tensor2D* result = Tensor_alloc(matrix->rows, matrix->cols);
-
-  for (int i = 0; i < result->rows; ++i) 
-  {
-    for (int j = 0; j < result->cols; ++j)
+    for (int i = 0; i < matrix->rows; ++i)
     {
-      TENSOR_AT(matrix, i, j) = val;
+        for (int j = 0; j < matrix->cols; ++j)
+        {
+            TENSOR_AT(matrix, i, j) = val;
+        }
     }
-  }
 }
 
 
-Tensor2D* Tensor_add(Tensor2D* a, float b)
+Tensor2D* Tensor_add(Tensor2D* a, Tensor2D* b)
 {
   Tensor2D* result = Tensor_alloc(a->rows, a->cols);
 
@@ -144,11 +180,35 @@ Tensor2D* Tensor_add(Tensor2D* a, float b)
   {
     for (int j = 0; j < result->cols; ++j)
     {
-      TENSOR_AT(result, i, j) = TENSOR_AT(a, i, j) + b;
+      TENSOR_AT(result, i, j) = TENSOR_AT(a, i, j) + TENSOR_AT(b,i,j);
     }
   }
   return result;
 }
+
+
+Tensor2D* Tensor_sub(Tensor2D* a, Tensor2D* b)
+{
+  TENSOR_ASSERT(a != NULL && b != NULL);
+  TENSOR_ASSERT(a->data != NULL && b->data != NULL);
+
+  TENSOR_ASSERT(a->rows == b->rows);
+  TENSOR_ASSERT(a->cols == b->cols);
+
+  Tensor2D* result = Tensor_alloc(a->rows, a->cols);
+
+  for (int i = 0; i < a->rows; i++)
+  {
+    for (int j = 0; j < a->cols; j++)
+    {
+      TENSOR_AT(result, i, j) = TENSOR_AT(a, i, j) - TENSOR_AT(b, i, j);
+    }
+  }
+
+  return result;
+}
+
+
 
 Tensor2D* Tensor_mul(Tensor2D* a, Tensor2D* b) 
 {
@@ -173,6 +233,26 @@ Tensor2D* Tensor_mul(Tensor2D* a, Tensor2D* b)
   }
   return result;
 }
+
+Tensor2D* Tensor_hadamard(Tensor2D* a, Tensor2D* b)
+{
+    TENSOR_ASSERT(a->rows == b->rows);
+    TENSOR_ASSERT(a->cols == b->cols);
+
+    Tensor2D* result = Tensor_alloc(a->rows, a->cols);
+
+    for (int i = 0; i < a->rows; ++i)
+    {
+        for (int j = 0; j < a->cols; ++j)
+        {
+            TENSOR_AT(result, i, j) =
+                TENSOR_AT(a, i, j) * TENSOR_AT(b, i, j);
+        }
+    }
+
+    return result;
+}
+
 
 Tensor2D* Tensor_transpose(Tensor2D* a)
 {

@@ -9,81 +9,89 @@
 #define RICHNN_IMPLEMENTATION
 #include "../RichNN.h"
 
-// Trainining Data
-
-static const float inputs[][2] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
-static const float outputs[] = {0, 1, 1, 0};
-#define train_count (sizeof inputs / sizeof inputs[0])
-
+void zero_gradients(NeuralNetwork* gradients) {
+    for (int l = 1; l < gradients->layer_count; ++l) {
+        Tensor_fill(gradients->layers[l]->weights, 0.0f);
+        Tensor_fill(gradients->layers[l]->bias, 0.0f);
+    }
+}
 
 int main(int argc, char** argv) 
 {
-  srand(time(NULL));
-  
-  // define the number of neurons on each layer. 
-  int layer_sizes[] = {2, 2, 2, 1};
-  // compute the number of layers - we could store this wi
-  int layer_count = sizeof(layer_sizes) / sizeof(layer_sizes[0]);
-  // here we store the number of inputs per example
-  int individual_example_inputs = 2;
+    srand((unsigned)time(NULL));
 
-  // Create the neural network
-  NeuralNetwork* XorNetwork = (NeuralNetwork*)malloc(sizeof(NeuralNetwork));
-  init_network(XorNetwork, 
-               layer_sizes, layer_count, 
-               individual_example_inputs, train_count
-               );
+    int layer_sizes[] = {2, 4, 1};
+    int layer_count = sizeof(layer_sizes) / sizeof(layer_sizes[0]);
+    int individual_example_inputs = 2;
 
-  // create seperate network to store the gradients on each layer
-  NeuralNetwork* gradients = (NeuralNetwork*)malloc(sizeof(NeuralNetwork));
-  init_network(gradients, 
-               layer_sizes, layer_count, 
-               individual_example_inputs, train_count
-               );
+    float inputs[][2] = {
+        {0,0}, {0,1}, {1,0}, {1,1}
+    };
+    float outputs[][1] = {
+        {0}, {1}, {1}, {0}
+    };
 
-  // define an epsilon and learning rate for the network
-  float eps = 1e-3;
-  float rate = 1e-1;
+    int train_count = 4;
 
-  int iterations = 50 * 1000;
+    NeuralNetwork* XorNetwork = (NeuralNetwork*)malloc(sizeof(NeuralNetwork));
+    init_network(XorNetwork, layer_sizes, layer_count, individual_example_inputs, train_count);
 
-  for (size_t i = 0; i <= iterations; ++i) 
-  {
-    // train the network for a specified number of iterations
-    backpropagation(XorNetwork, gradients, inputs, outputs);
-    //finite_difference(XorNetwork, gradients, eps, inputs, outputs);
-    XorNetwork = batch_gradient_descent(XorNetwork, gradients, rate);
+    NeuralNetwork* gradients = (NeuralNetwork*)malloc(sizeof(NeuralNetwork));
+    init_network(gradients, layer_sizes, layer_count, individual_example_inputs, train_count);
 
-    // this will show us logs if we provide the -Log flag (see the build script)
-    if(argc > 1 && strcmp(argv[1], "-Log") == 0)
+    float rate = 0.5f;
+    int iterations = 10000;
+
+    for (int iter = 0; iter < iterations; ++iter) 
     {
-      if (i % 100 == 0) 
-      {
-        float cost_value = cost(XorNetwork, XorNetwork->sample_size, inputs, outputs);
-        printf("Epoch - %zu / %d) cost = %f\n", i, iterations, cost_value);
-      }
+        // 1. Zero gradients
+        zero_gradients(gradients);
+
+        // 2. Accumulate gradients for each training example
+        for (int j = 0; j < train_count; ++j) 
+        {
+            float single_input[2] = { inputs[j][0], inputs[j][1] };
+            float single_output[1] = { outputs[j][0] };
+
+            // Forward pass
+            Tensor2D* output = forward(XorNetwork, single_input, individual_example_inputs, sigmoid);
+
+            // Backprop (accumulates into gradients)
+            Tensor2D* delta_L = backpropagation(XorNetwork, gradients, &single_input, single_output);
+
+        }
+
+        // 4. Update network with averaged gradients
+        batch_gradient_descent(XorNetwork, gradients, rate);
+
+        // Logging training loss
+        if (argc > 1 && strcmp(argv[1], "-Log") == 0 && iter % 100 == 0) 
+        {
+            float current_cost = cost(XorNetwork, individual_example_inputs, inputs, outputs[0]);
+            printf("Epoch %d / %d | Cost = %f\n", iter, iterations, current_cost);
+        }
     }
-  }
 
-  // validating that our network performed well, since we only have those inputs possible 
-  // this isn't great but it shows us that it worked correctly.
-  printf("---------------\n");
-  printf("Loss = %f\n", cost(XorNetwork, XorNetwork->sample_size, inputs, outputs));
+    // Final loss
+    float final_cost = cost(XorNetwork, individual_example_inputs, inputs, outputs[0]);
+    printf("Final Loss = %f\n", final_cost);
 
-  printf("---------------");
-  printf("\nValidation Data: \n");
+    printf("---------------");
+    printf("\nValidation Data: \n");
 
-  for (size_t i = 0; i < 2; ++i) 
-  {
-      for (size_t j = 0; j < 2; ++j)
-      {
-        float inputs[] = {i, j};
-        Tensor2D* output = forward(XorNetwork, (float*)inputs, XorNetwork->sample_size, sigmoid);
-        printf("\n");
-        float o = (TENSOR_AT(output, 0,0) < 0.1) ? 0 : 1;
-        printf("%zu ^ %zu = %f\n", i, j, o);
-      }
-  }
-  
-  free_network(XorNetwork);
+    for (size_t i = 0; i < 2; ++i) 
+    {
+        for (size_t j = 0; j < 2; ++j)
+        {
+          float inputs[] = {i, j};
+          Tensor2D* output = forward(XorNetwork, (float*)inputs, XorNetwork->sample_size, sigmoid);
+          printf("\n");
+          float o = (TENSOR_AT(output, 0,0) < 0.1) ? 0 : 1;
+          printf("%zu ^ %zu = %f\n", i, j, o);
+        }
+    }
+
+    return 0;
 }
+
+
