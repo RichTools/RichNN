@@ -6,6 +6,10 @@ This code is a work in progress and thus has no documentation. If you are intere
 - examples/xor.c
 - examples/iris.c
 
+## Learn More 
+
+https://richtools.github.io/articles/neuralnet.html
+
 ## Todo:
 - [x] Using Back Propagation instead of Finite Difference
 - [x] Iris
