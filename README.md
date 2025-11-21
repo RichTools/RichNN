@@ -1,4 +1,6 @@
-# WIP
+# RichNN 
+RichNN is a small example of training neural networks from scratch in C, it is training on an XOR Gate, and the Iris classification dataset. 
+
 This code is a work in progress and thus has no documentation. If you are interested, I suggest you look at the following:
 - RichNN
 - examples/xor.c
