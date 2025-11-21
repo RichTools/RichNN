@@ -23,6 +23,7 @@ int main(int argc, char** argv)
     int layer_sizes[] = {2, 4, 1};
     int layer_count = sizeof(layer_sizes) / sizeof(layer_sizes[0]);
     int individual_example_inputs = 2;
+    int OUT_DIM = 1;
 
     float inputs[][2] = {
         {0,0}, {0,1}, {1,0}, {1,1}
@@ -67,13 +68,13 @@ int main(int argc, char** argv)
         // Logging training loss
         if (argc > 1 && strcmp(argv[1], "-Log") == 0 && iter % 100 == 0) 
         {
-            float current_cost = cost(XorNetwork, individual_example_inputs, inputs, outputs[0]);
+            float current_cost = cost(XorNetwork, individual_example_inputs, OUT_DIM, inputs, outputs[0]);
             printf("Epoch %d / %d | Cost = %f\n", iter, iterations, current_cost);
         }
     }
 
     // Final loss
-    float final_cost = cost(XorNetwork, individual_example_inputs, inputs, outputs[0]);
+    float final_cost = cost(XorNetwork, individual_example_inputs, OUT_DIM, inputs, outputs[0]);
     printf("Final Loss = %f\n", final_cost);
 
     printf("---------------");

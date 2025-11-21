@@ -35,7 +35,7 @@ Tensor2D* Tensor_sigmoid_prime(Tensor2D* z);
 
 // Creating the Network Architecture
 
-Layer* init_layer(int index, int size, int prev_size);
+Layer* init_layer(int n_out, int n_in);
 void init_network(NeuralNetwork* network, int* layer_sizes, int num_layers, int sample_size, int train_size);
 void print_network(NeuralNetwork* network);
 
@@ -45,12 +45,13 @@ Tensor2D* forward(NeuralNetwork* network, float inputs[], int inputSize, float (
 NeuralNetwork* batch_gradient_descent(NeuralNetwork* model, NeuralNetwork* gradients, float rate);
 
 Tensor2D* finite_difference(NeuralNetwork* model, NeuralNetwork* gradients, 
-    float eps, float inputs[][model->sample_size], float outputs[]);
+    float eps, float inputs[][model->sample_size], int out, float outputs[out]);
 
 Tensor2D* backpropagation(NeuralNetwork* model, NeuralNetwork* gradients, 
     float inputs[][model->sample_size], float outputs[]); 
 
-float cost(NeuralNetwork* network, int n, float (*input_vals)[n], float output_vals[]); 
+float cost(NeuralNetwork* network, int n, int out, float (*input_vals)[n], float output_vals[][out]); 
+//float cost(NeuralNetwork* network, int n, float (*input_vals)[n], float output_vals[]); 
 // Cleaning up memory
 
 void free_layer(Layer *layer);
@@ -102,8 +103,7 @@ Tensor2D* Tensor_sigmoid_prime(Tensor2D* z)
     {
         for (int j = 0; j < z->cols; j++)
         {
-            float s = sigmoid(TENSOR_AT(z, i, j));
-            TENSOR_AT(out, i, j) = s * (1.0f - s);
+            TENSOR_AT(out, i, j) = dsigmoid(TENSOR_AT(z, i, j));
         }
     }
     return out;
@@ -111,23 +111,24 @@ Tensor2D* Tensor_sigmoid_prime(Tensor2D* z)
 
 // Neural Network Creation
 
-Layer* init_layer(int index, int size, int prev_size)
+Layer* init_layer(int n_out, int n_in)
 {
-  Layer* layer = (Layer*)malloc(sizeof(Layer));
+  Layer* layer = malloc(sizeof(Layer));
 
-  layer->size = size;
- 
-  layer->weights = Tensor_init(size, prev_size);
-  if (index == 0)
-  {
-    Tensor2D* biases = Tensor_init(size, 1);
-    Tensor_fill(biases, 0);
-    layer->bias = biases;
-  } 
-  else
-  {
-    layer->bias = Tensor_init(size, 1);
+  layer->size = n_out;
+  layer->weights = Tensor_init(n_out, n_in); // rows = n_out, cols = n_in
+  layer->bias    = Tensor_init(n_out, 1);
+
+  // Random init weights in [-1,1) (scale as you prefer)
+  for (size_t r = 0; r < layer->weights->rows; ++r) {
+      for (size_t c = 0; c < layer->weights->cols; ++c) {
+          TENSOR_AT(layer->weights, r, c) = ((float)rand() / RAND_MAX) * 2.0f - 1.0f;
+      }
   }
+  for (size_t r = 0; r < layer->bias->rows; ++r) {
+      TENSOR_AT(layer->bias, r, 0) = 0.0f; // or small random
+  }
+
   return layer;
  }
 
@@ -152,33 +153,13 @@ void init_network(NeuralNetwork* nn,
     }
 
     // Note: layer 0 has no weights/bias
-    nn->layers[0] = NULL;
+    //nn->layers[0] = NULL;
 
-    for (int l = 1; l < layer_count; ++l) {
-        Layer* layer = malloc(sizeof(Layer));
+    for (int l = 0; l < layer_count; ++l) {
         int n_out = layer_sizes[l];
         int n_in  = layer_sizes[l-1];
 
-        layer->size = n_out;
-        layer->weights = Tensor_init(n_out, n_in); // rows = n_out, cols = n_in
-        layer->bias    = Tensor_init(n_out, 1);
-
-        // Random init weights in [-1,1) (scale as you prefer)
-        for (size_t r = 0; r < layer->weights->rows; ++r) {
-            for (size_t c = 0; c < layer->weights->cols; ++c) {
-                TENSOR_AT(layer->weights, r, c) = ((float)rand() / RAND_MAX) * 2.0f - 1.0f;
-            }
-        }
-        for (size_t r = 0; r < layer->bias->rows; ++r) {
-            TENSOR_AT(layer->bias, r, 0) = 0.0f; // or small random
-        }
-
-        nn->layers[l] = layer;
-
-        // optional debug print:
-        printf("Layer %d weights: %zu x %zu  bias: %zu x %zu\n",
-               l, layer->weights->rows, layer->weights->cols,
-               layer->bias->rows, layer->bias->cols);
+        nn->layers[l] = init_layer(n_out, n_in);
     }
 }
 
@@ -193,6 +174,7 @@ void print_network(NeuralNetwork* network)
       printf("Inputs: \n");
     else
       printf("Weights: \n");
+
     Tensor_print(network->layers[i]->weights);
     if (i != 0)
     {
@@ -279,11 +261,11 @@ NeuralNetwork* batch_gradient_descent(NeuralNetwork* model, NeuralNetwork* gradi
 }
 
 Tensor2D* finite_difference(NeuralNetwork* model, NeuralNetwork* gradients, 
-                            float eps, float inputs[][model->sample_size], float outputs[]) 
+                            float eps, float inputs[][model->sample_size], int out, float outputs[out]) 
 {
   NeuralNetwork* m = model;
 
-  float current_cost = cost(model, model->sample_size, inputs, outputs);
+  float current_cost = cost(model, model->sample_size, out, inputs, outputs);
   float saved;
 
   for (int i = 0; i < m->layer_count; ++i)
@@ -296,7 +278,7 @@ Tensor2D* finite_difference(NeuralNetwork* model, NeuralNetwork* gradients,
       TENSOR_AT(current_layer->bias, r, 0) += eps;
 
       TENSOR_AT(current_gradient_layer->bias, r, 0) =
-          (cost(model, model->sample_size, inputs, outputs) - current_cost) / eps;
+          (cost(model, model->sample_size, out, inputs, outputs) - current_cost) / eps;
 
       TENSOR_AT(current_layer->bias, r, 0) = saved;
     }
@@ -307,7 +289,7 @@ Tensor2D* finite_difference(NeuralNetwork* model, NeuralNetwork* gradients,
       {
         saved = TENSOR_AT(current_layer->weights, j, k);
         TENSOR_AT(current_layer->weights, j, k) += eps;
-        TENSOR_AT(current_gradient_layer->weights, j, k) = (cost(model, model->sample_size, inputs, outputs) - current_cost)/eps;
+        TENSOR_AT(current_gradient_layer->weights, j, k) = (cost(model, model->sample_size, out, inputs, outputs) - current_cost)/eps;
         TENSOR_AT(current_layer->weights, j, k) = saved;   
       }
     }
@@ -316,6 +298,7 @@ Tensor2D* finite_difference(NeuralNetwork* model, NeuralNetwork* gradients,
 }
 
 // backpropagation
+// http://neuralnetworksanddeeplearning.com/chap2.html
 
 Tensor2D* backpropagation(NeuralNetwork* model, NeuralNetwork* gradients, 
     float inputs[][model->sample_size], float outputs[]) 
@@ -419,34 +402,37 @@ Tensor2D* backpropagation(NeuralNetwork* model, NeuralNetwork* gradients,
 
 // computing the cost function
 
-float cost(NeuralNetwork* network, int n, float (*input_vals)[n], float output_vals[]) 
+float cost(NeuralNetwork* network, int n, int out, float (*input_vals)[n], float output_vals[][out]) 
 {
-  float MSE_Result = 0.0f;
+  float MSE = 0.0f;
 
-  for (size_t i = 0; i < network->train_size; ++i) 
+  int N = network->train_size;
+  int output_size = network->layers[network->layer_count - 1]->size;
+
+  for (int i = 0; i < N; i++)
   {
+    // Copy input
     float input_sample[n];
-
-    for (int j = 0; j < n; ++j)
-    {
+    for (int j = 0; j < n; j++)
       input_sample[j] = input_vals[i][j];
-    }
 
-    Tensor2D* output_matrix = forward(network, (float*)input_sample, n, sigmoid);
+    // Forward pass
+    Tensor2D* pred = forward(network, input_sample, n, sigmoid);
 
-    if (output_matrix->cols * output_matrix->rows == 1)
+    // MSE across all outputs 
+    for (int k = 0; k < output_size; k++)
     {
-      float y = TENSOR_AT(output_matrix, 0, 0);
-      float d = y - output_vals[i];
-      MSE_Result += d*d;
-    }
-    else 
-    {
-      TENSOR_ASSERT(0 && "Multiple Output Parameters are not Implemented");
+      float y = TENSOR_AT(pred, k, 0);
+      float t = output_vals[i][k];
+      float d = y - t;
+      MSE += d * d;
     }
   }
-  MSE_Result /= network->train_size;
-  return MSE_Result;
+
+  // Normalize by total samples * output dimensions
+  MSE /= (float)(N * output_size);
+
+  return MSE;
 }
 
 // Free allocated memory for layers

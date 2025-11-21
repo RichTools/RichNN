@@ -2,12 +2,12 @@
 This code is a work in progress and thus has no documentation. If you are interested, I suggest you look at the following:
 - RichNN
 - examples/xor.c
+- examples/iris.c
 
 ## Todo:
 - [x] Using Back Propagation instead of Finite Difference
-- [ ] MNIST
+- [x] Iris
 - [ ] Optimisers: Stochastic GD, SGD with Momentum etc..
-- [ ] Batch Processing
 - [ ] Cleaner API
 - [ ] Releasing and Licensing
 - [ ] Visualisation of the Network
