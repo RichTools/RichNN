@@ -140,6 +140,8 @@ int main()
   float rate = 0.05f;
   int epochs = 3000;
 
+  clock_t begin = clock();
+
   //-----------------------------
   // 3. Training Loop
   //-----------------------------
@@ -175,10 +177,14 @@ int main()
     }
   }
 
+  clock_t end = clock();
+  double time_spent_train = (double)(end - begin) / CLOCKS_PER_SEC;
+
   //-----------------------------
   // 4. Test on all samples
   //-----------------------------
   printf("\nTesting classifier:\n");
+  begin = clock();
   int correct = 0;
 
   for (int i = train_count; i < count; i++) // print first 10 examples
@@ -194,9 +200,15 @@ int main()
 
       printf("Predicted = %d   Actual = %d\n", predicted, y[i]);
     }
+    end = clock();
 
     printf("\nTEST ACCURACY = %.2f%%\n",
           100.0 * correct / test_count);
+    double time_spent_test = (double)(end - begin) / CLOCKS_PER_SEC;
+    
+    printf("Training time: %fs\n", time_spent_train);
+    printf("Testing time: %fs\n", time_spent_test);
+
 
     return 0;
 }
